@@ -2,6 +2,8 @@
 #
 # This define manages Sensu checks
 #
+# @param filename The name of the configuration file for this check.
+#
 # @param command The check command to run
 #
 # @param ensure Whether the check should be present or not.
@@ -102,6 +104,7 @@
 #   of the Hash value.
 #
 define sensuclassic::check (
+  Optional[String] $filename = undef,
   Optional[String] $command = undef,
   Enum['present','absent'] $ensure = 'present',
   Optional[String] $type = undef,
@@ -233,7 +236,7 @@ define sensuclassic::check (
     auto_resolve        => $auto_resolve,
   }
 
-  # Remove key/value pares where the value is `undef` or `"absent"`.
+  # Remove key/value pairs where the value is `undef` or `"absent"`.
   $check_config_pruned = $check_config_start.reduce({}) |$memo, $kv| {
     $kv[1] ? {
       undef    => $memo,
@@ -262,7 +265,14 @@ define sensuclassic::check (
   # on top of any arbitrary plugin and extension configuration in $content.
   $content_real = $content + $checks_scope
 
-  sensuclassic::write_json { "${sensuclassic::conf_dir}/checks/${check_name}.json":
+  # Use the check name as the name of the JSON configuration file unless
+  # an explicit filename has been provided.
+  $check_filename = $filename ? {
+    undef   => $check_name,
+    default => $filename,
+  }
+
+  sensuclassic::write_json { "${sensuclassic::conf_dir}/checks/${check_filename}.json":
     ensure      => $ensure,
     content     => $content_real,
     owner       => $sensuclassic::user,
